@@ -15,7 +15,7 @@ import (
 
 var ErrTLSConfig = errors.New("unable to config TLS")
 
-// Helper methods for creating tls.Config structs to ensure MinVersion is 1.3
+// Helper methods for creating tls.Config structs to ensure MinVersion is 1.2
 
 func NewEmptyTLSConfig() *tls.Config {
 	return &tls.Config{
@@ -60,10 +60,32 @@ func NewTLSConfigWithCertsAndCAs(
 	clientCAs *x509.CertPool,
 	logger log.Logger,
 ) *tls.Config {
+	return NewTLSConfigWithCertsAndCAsAndCipherSuites(
+		clientAuth,
+		certificates,
+		clientCAs,
+		nil, // no custom cipher suites
+		logger,
+	)
+}
+
+// NewTLSConfigWithCertsAndCAsAndCipherSuites creates a TLS config with the specified
+// cipher suites. If cipherSuites is nil or empty, Go's default cipher suites are used.
+// Note: TLS 1.3 cipher suites are not configurable and are always used when TLS 1.3 is negotiated.
+func NewTLSConfigWithCertsAndCAsAndCipherSuites(
+	clientAuth tls.ClientAuthType,
+	certificates []tls.Certificate,
+	clientCAs *x509.CertPool,
+	cipherSuites []uint16,
+	logger log.Logger,
+) *tls.Config {
 	c := NewEmptyTLSConfig()
 	c.ClientAuth = clientAuth
 	c.Certificates = certificates
 	c.ClientCAs = clientCAs
+	if len(cipherSuites) > 0 {
+		c.CipherSuites = cipherSuites
+	}
 	c.VerifyConnection = func(state tls.ConnectionState) error {
 		logger.Debug("successfully established incoming TLS connection", tag.ServerName(state.ServerName), tag.Name(tlsCN(state)))
 		return nil
